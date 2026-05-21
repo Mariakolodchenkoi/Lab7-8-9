@@ -16,12 +16,28 @@ const apiService = {
 };
 
 const createAuthProxy = (targetService, authStrategy) => {
+  let requestCount = 0;
+  let lastReset = Date.now();
+
   return new Proxy(targetService, {
     get(target, prop) {
       if (prop === 'fetchData') {
         return async function (endpoint, options = {}) {
-          options.headers = options.headers || {};
+    
+          const now = Date.now();
+          if (now - lastReset > 1000) {
+            requestCount = 0;
+            lastReset = now;
+          }
+          requestCount++;
           
+          if (requestCount > 2) {
+            console.log(`[Proxy Blocked] Request to ${endpoint} Denied`);
+            if (typeof monitoringSystem !== 'undefined') monitoringSystem.blockedRequests++;
+            return { status: 429, error: "Too many requests. Rate limit exceeded." };
+          }
+
+          options.headers = options.headers || {};
           if (authStrategy.token) {
             if (authStrategy.type === 'JWT' || authStrategy.type === 'OAuth') {
               options.headers['Authorization'] = `Bearer ${authStrategy.token}`;
