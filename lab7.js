@@ -7,7 +7,7 @@ class EventEmitter {
     if (!this.events[event]) return;
     this.events[event].forEach(listener => listener(data));
   }
-  
+
   subscribe(event, listener) {
     if (!this.events[event]) {
       this.events[event] = [];
@@ -24,4 +24,17 @@ class EventEmitter {
   }
 }
 
-module.exports = EventEmitter;
+const bus = new EventEmitter();
+const logger = (msg) => console.log(`[Logger]: ${msg}`);
+const UI = (msg) => console.log(`[UI Render]:"${msg}"`);
+
+const unsubLogger = bus.subscribe('update', logger);
+bus.subscribe('update', UI);
+
+console.log("First emit:");
+bus.emit('update', 'change state');
+
+unsubLogger();
+
+console.log("\nSecond emit:");
+bus.emit('update', 'change state again');
