@@ -1,34 +1,47 @@
 const LOG_LEVELS = { DEBUG: 0, INFO: 1, ERROR: 2 };
-let SYSTEM_LOG_LEVEL = LOG_LEVELS.DEBUG; 
+let SYSTEM_LOG_LEVEL = LOG_LEVELS.DEBUG;
 
-function log(config = { level: 'INFO' }) {
+const formatters = {
+  text: (ctx) => `[${ctx.timestamp}] [${ctx.level}] Function: "${ctx.name}" | Arguments: ${JSON.stringify(ctx.arguments)} | Result: ${JSON.stringify(ctx.result || ctx.error)} | Time: ${ctx.time ? ctx.time + 'ms' : 'N/A'}`,
+  json: (ctx) => JSON.stringify(ctx, null, 2)
+};
+
+function log(config = { level: 'INFO', format: 'text' }) {
+  const formatter = formatters[config.format || 'text'];
+
   return function (targetFunc) {
     return async function (...args) {
       const currentLevel = LOG_LEVELS[config.level];
-      const timestamp = new Date().toISOString();
-
-      if (currentLevel >= SYSTEM_LOG_LEVEL) {
-        console.log(`[${timestamp}] [${config.level}] Calling function: "${targetFunc.name}"`);
-        console.log(`[${timestamp}] [${config.level}] Arguments:`, args);
-      }
+      const startTime = performance.now();
 
       try {
-        const startTime = performance.now();
-        
         const result = await targetFunc.apply(this, args);
-        
-        const endTime = performance.now(); 
+        const endTime = performance.now();
         const executionTime = (endTime - startTime).toFixed(2);
 
         if (currentLevel >= SYSTEM_LOG_LEVEL) {
-          console.log(`[${new Date().toISOString()}] [${config.level}] Result:`, result);
-          console.log(`[${new Date().toISOString()}] [PROFILE] Function "${targetFunc.name}" executed in ${executionTime}ms`);
+          const logContext = {
+            timestamp: new Date().toISOString(),
+            level: config.level,
+            name: targetFunc.name,
+            arguments: args,
+            result: result,
+            time: executionTime
+          };
+          console.log(formatter(logContext));
         }
         return result;
       } catch (error) {
-        console.error(`[${new Date().toISOString()}] [ERROR] Exception in "${targetFunc.name}": ${error.message}`);
+        const logContext = {
+          timestamp: new Date().toISOString(),
+          level: 'ERROR',
+          name: targetFunc.name,
+          arguments: args,
+          error: error.message
+        };
+        console.error(formatter(logContext));
         throw error;
-      }
       }
     };
   };
+}
