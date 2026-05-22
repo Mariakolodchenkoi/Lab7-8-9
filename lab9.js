@@ -3,7 +3,7 @@ let SYSTEM_LOG_LEVEL = LOG_LEVELS.DEBUG;
 
 function log(config = { level: 'INFO' }) {
   return function (targetFunc) {
-    return function (...args) {
+    return async function (...args) {
       const currentLevel = LOG_LEVELS[config.level];
       const timestamp = new Date().toISOString();
 
@@ -12,13 +12,17 @@ function log(config = { level: 'INFO' }) {
         console.log(`[${timestamp}] [${config.level}] Аргументи:`, args);
       }
 
-      const result = targetFunc.apply(this, args);
+      try {
+        const result = await targetFunc.apply(this, args);
 
-      if (currentLevel >= SYSTEM_LOG_LEVEL) {
-        console.log(`[${new Date().toISOString()}] [${config.level}] Результат:`, result);
+        if (currentLevel >= SYSTEM_LOG_LEVEL) {
+          console.log(`[${new Date().toISOString()}] [${config.level}] Результат:`, result);
+        }
+        return result;
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] [ERROR] Exception in "${targetFunc.name}": ${error.message}`);
+        throw error; 
       }
-
-      return result;
     };
   };
 }
