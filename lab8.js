@@ -77,3 +77,40 @@ const createAuthProxy = (targetService, authStrategy) => {
     }
   });
 };
+
+(async () => {
+  let currentStrategy = { type: 'JWT', token: 'INITIAL_JWT_TOKEN_2026' };
+  const secureProxy = createAuthProxy(apiService, currentStrategy);
+
+  console.log("Success with JWT");
+  const r1 = await secureProxy.fetchData('/api/v1/user/profile');
+  console.log("Server returned:", r1.status);
+
+  console.log("\nDynamic ApiKey Strategy");
+  currentStrategy.type = 'ApiKey';
+  currentStrategy.token = 'KPI_SECRET_KEY_777';
+  const r2 = await secureProxy.fetchData('/api/v1/admin/dashboard');
+  console.log("Server returned:", r2.status);
+  console.log("\nTesting the absence of token (Simulating 401)");
+  currentStrategy.token = null; 
+  const r3 = await secureProxy.fetchData('/api/v1/settings');
+  console.log("Server returned:", r3.status, `| Error: ${r3.error}`);
+  console.log("\nTesting Token Renewal");
+  if (r3.status === 401) {
+    console.log("[Proxy Action] 401 detected. Attempting token renewal");
+    currentStrategy.type = 'OAuth';
+    currentStrategy.token = 'NEW_AUTO_RENEWED_TOKEN_2026';
+    console.log("[Proxy Action] Retry with renewed token:");
+    const retryRes = await secureProxy.fetchData('/api/v1/settings');
+    console.log("Result of retry:", retryRes.status);
+  }
+
+  console.log("\nTesting Rate Limiting");
+  await Promise.all([
+    secureProxy.fetchData('/api/v1/resource/1'),
+    secureProxy.fetchData('/api/v1/resource/2'),
+    secureProxy.fetchData('/api/v1/resource/3')
+  ]);
+
+  monitoringSystem.showMetrics();
+})();
