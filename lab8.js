@@ -1,3 +1,17 @@
+const monitoringSystem = {
+  totalRequests: 0,
+  successfulRequests: 0,
+  blockedRequests: 0,
+  authFailures: 0,
+  showMetrics() {
+    console.log(`\nMONITORING DASHBOARD`);
+    console.log(` Total Requests: ${this.totalRequests}`);
+    console.log(` Successful Requests: ${this.successfulRequests}`);
+    console.log(` Blocked Requests (Rate Limit): ${this.blockedRequests}`);
+    console.log(` Authentication Failures (401): ${this.authFailures}`);
+  }
+};
+
 const apiService = {
   async fetchData(endpoint, options = {}) {
     const delay = Math.floor(Math.random() * 200) + 100;
@@ -23,6 +37,9 @@ const createAuthProxy = (targetService, authStrategy) => {
     get(target, prop) {
       if (prop === 'fetchData') {
         return async function (endpoint, options = {}) {
+            monitoringSystem.totalRequests++;
+
+          console.log(`[Proxy Log] [${new Date().toLocaleTimeString()}] Request to ${endpoint}`);
     
           const now = Date.now();
           if (now - lastReset > 1000) {
@@ -46,7 +63,14 @@ const createAuthProxy = (targetService, authStrategy) => {
             }
           }
 
-          return target[prop].apply(target, [endpoint, options]);
+          const startTime = performance.now();
+          const response = await target[prop].apply(target, [endpoint, options]);
+          const endTime = performance.now();
+          const duration = (endTime - startTime).toFixed(2);
+          
+          console.log(`[Proxy Monitor] Request to ${endpoint} processed in ${duration}ms (Status: ${response.status})`);
+
+          return response;
         };
       }
       return target[prop];
